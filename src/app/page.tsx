@@ -1,113 +1,286 @@
-import Image from "next/image";
+"use client";
+
+import { ThemeProvider } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Moon, Sun, Plus } from "lucide-react";
+import { useTheme } from "next-themes";
+import * as React from "react";
+import { useState, useEffect } from "react";
+
+// Define the BlogPost interface
+interface BlogPost {
+  id: number;
+  title: string;
+  description: string;
+  imageUrl: string;
+  fullContent: string;
+}
+
+const initialBlogs: BlogPost[] = [
+  {
+    id: 1,
+    title: "Blog Post 1",
+    description: "This is the first blog post.",
+    imageUrl: "https://via.placeholder.com/400x200?text=Blog+Post+1",
+    fullContent: "This is the complete content for the first blog post",
+  },
+  {
+    id: 2,
+    title: "Blog Post 2",
+    description: "This is the second blog post.",
+    imageUrl: "https://via.placeholder.com/400x200?text=Blog+Post+2",
+    fullContent: "This is the complete content for the second blog post",
+  },
+];
 
 export default function Home() {
+  const { setTheme } = useTheme();
+  const [blogs, setBlogs] = useState<BlogPost[]>(() => {
+    // Load blogs from local storage or use initialBlogs
+    const savedBlogs = localStorage.getItem("blogs");
+    return savedBlogs ? JSON.parse(savedBlogs) : initialBlogs;
+  });
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [newBlog, setNewBlog] = useState<{
+    title: string;
+    description: string;
+    fullContent: string;
+    imageFile: File | null;
+  }>({
+    title: "",
+    description: "",
+    fullContent: "",
+    imageFile: null,
+  });
+  const [expandedBlogId, setExpandedBlogId] = useState<number | null>(null); // Add state for expanded blog
+
+  useEffect(() => {
+    // Save blogs to local storage whenever they change
+    localStorage.setItem("blogs", JSON.stringify(blogs));
+  }, [blogs]);
+
+  useEffect(() => {
+    // Cleanup function to revoke object URLs
+    return () => {
+      blogs.forEach((blog) => {
+        if (blog.imageUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(blog.imageUrl);
+        }
+      });
+    };
+  }, [blogs]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewBlog((prevBlog) => ({
+      ...prevBlog,
+      [name]: value,
+    }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    setNewBlog((prevBlog) => ({
+      ...prevBlog,
+      imageFile: file,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newId = blogs.length + 1;
+    const newImageUrl = newBlog.imageFile
+      ? URL.createObjectURL(newBlog.imageFile)
+      : "https://via.placeholder.com/400x200?text=New+Blog+Post";
+
+    const newBlogPost: BlogPost = {
+      id: newId,
+      title: newBlog.title,
+      description: newBlog.description,
+      imageUrl: newImageUrl,
+      fullContent: newBlog.fullContent,
+    };
+
+    setBlogs([...blogs, newBlogPost]);
+    setIsFormVisible(false); // Hide the form after submission
+    setNewBlog({
+      title: "",
+      description: "",
+      fullContent: "",
+      imageFile: null,
+    }); // Reset form
+  };
+
+  const handleDelete = (id: number) => {
+    setBlogs(blogs.filter((blog) => blog.id !== id));
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <ThemeProvider attribute="class">
+      <div className="container mx-auto p-8">
+        <div className="p-4 flex justify-between items-center">
+          <h1 className="text-3xl font-bold mb-8">Blog Showcase</h1>
+          <div className="flex items-center space-x-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="mb-10" variant="outline" size="icon">
+                  <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                  Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                  System
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              className="mb-10"
+              variant="outline"
+              size="icon"
+              onClick={() => setIsFormVisible(!isFormVisible)}
+            >
+              <Plus className="h-[1.2rem] w-[1.2rem]" />
+              <span className="sr-only">Add Blog Post</span>
+            </Button>
+          </div>
+        </div>
+
+        {isFormVisible && (
+          <form
+            onSubmit={handleSubmit}
+            className="mb-8 p-4 border rounded-lg shadow-md"
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+            <div className="mb-4">
+              <label className="block text-lg font-medium text-teal-700">
+                Title
+              </label>
+              <input
+                type="text"
+                name="title"
+                value={newBlog.title}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm h-12"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-lg font-medium text-teal-700">
+                Description
+              </label>
+              <textarea
+                name="description"
+                value={newBlog.description}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm h-32"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-lg font-medium text-teal-700">
+                Full Content
+              </label>
+              <textarea
+                name="fullContent"
+                value={newBlog.fullContent}
+                onChange={handleInputChange}
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm h-64"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-lg font-medium text-teal-700">
+                Image
+              </label>
+              <input
+                type="file"
+                name="imageFile"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm"
+              />
+            </div>
+
+            <Button
+              className="mt-4 text-lg font-medium text-teal-700"
+              type="submit"
+              variant="secondary"
+            >
+              Add Blog Post
+            </Button>
+          </form>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {blogs.map((blog) => (
+            <BlogCard
+              key={blog.id}
+              blog={blog}
+              isExpanded={blog.id === expandedBlogId}
+              onToggleExpand={() =>
+                setExpandedBlogId(expandedBlogId === blog.id ? null : blog.id)
+              }
+              onDelete={handleDelete} // Pass the handleDelete function
             />
-          </a>
+          ))}
         </div>
       </div>
+    </ThemeProvider>
+  );
+}
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
+function BlogCard({
+  blog,
+  isExpanded,
+  onToggleExpand,
+  onDelete,
+}: {
+  blog: BlogPost;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onDelete: (id: number) => void;
+}) {
+  return (
+    <Card className="relative-position p-4 transition-all transform hover:scale-105 hover:shadow-lg hover:border-4 hover:border-teal-50 fade-in">
+      <img
+        src={blog.imageUrl}
+        alt={blog.title}
+        className="w-full h-40 object-cover rounded-md mb-4"
+      />
+      <h2 className="text-xl font-semibold mb-2">{blog.title}</h2>
+      <p className="text-gray-700">{blog.description}</p>
+      {isExpanded && <p className="text-gray-600 mt-2">{blog.fullContent}</p>}
+      <div className="flex justify-between items-center mt-4">
+        <Button onClick={onToggleExpand} variant="secondary">
+          {isExpanded ? "Read Less" : "Read More"}
+        </Button>
+        <Button
+          onClick={() => onDelete(blog.id)}
+          variant="outline"
+          className="text-red-500"
+        >
+          Delete
+        </Button>
       </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    </Card>
   );
 }
